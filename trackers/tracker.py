@@ -39,15 +39,33 @@ class Tracker:
         self.supervision = sv
 
     def interpolate_ball_positions(self,ball_positions):
-        ball_positions =[x.get(1,{}).get("bbox",[np.nan] * 4) for x in ball_positions]
-        df_ball_positions=pd.DataFrame(ball_positions,columns=["x1","y1","x2","y2"])
+        raw_ball_positions = [x.get(1, {}).get("bbox", [np.nan] * 4) for x in ball_positions]
+        df_ball_positions = pd.DataFrame(raw_ball_positions, columns=["x1", "y1", "x2", "y2"])
+        original_detection_mask = df_ball_positions.notna().all(axis=1)
 
-        #Interpolate missing values
-        df_ball_positions = df_ball_positions.interpolate().bfill()
+        # Only bridge short gaps; leaving longer gaps empty is more accurate than
+        # inventing a long ball trajectory that was never detected.
+        interpolated = df_ball_positions.interpolate(limit=3, limit_area="inside")
 
-        ball_positions= [{1:{"bbox":x}}for x in df_ball_positions.to_numpy().tolist()]
+        # Light smoothing reduces jitter without pulling the ball far off course.
+        smoothed = interpolated.rolling(window=3, min_periods=1, center=True).mean()
 
-        return ball_positions
+        interpolated_ball_positions = []
+        for frame_index, row in smoothed.iterrows():
+            if row.isna().any():
+                interpolated_ball_positions.append({})
+                continue
+
+            interpolated_ball_positions.append(
+                {
+                    1: {
+                        "bbox": row.tolist(),
+                        "is_interpolated": not bool(original_detection_mask.iloc[frame_index]),
+                    }
+                }
+            )
+
+        return interpolated_ball_positions
 
     def detect_frames(self, frames):
         self._ensure_tracking_backend()
@@ -228,7 +246,7 @@ class Tracker:
         box_half_height = max(30, map_height // 5)
         center_y = top_left[1] + map_height // 2
         cv2.rectangle(frame, (top_left[0], center_y - box_half_height), (top_left[0] + box_depth, center_y + box_half_height), (245, 245, 245), 2)
-        cv2.rectangle(frame, (bottom_right[0] - box_depth, center_y - box_half_height), bottom_right, (245, 245, 245), 2)
+        cv2.rectangle(frame, (bottom_right[0] - box_depth, center_y - box_half_height), (bottom_right[0], center_y + box_half_height), (245, 245, 245), 2)
         cv2.putText(frame, "Mini Map", (top_left[0] + 10, top_left[1] + 24), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (245, 245, 245), 2)
 
         current_players = tracks["players"][frame_num]
