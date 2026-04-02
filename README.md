@@ -29,7 +29,7 @@ python main.py --no-read-from-stub
 
 ### Annotated Match Output
 
-![Annotated football analytics overlay](docs/assets/output_overlay_frame.jpg)
+![Annotated football analytics overlay](docs/assets/output_overlay_frame.png)
 
 ### Team Formations Export
 
