@@ -92,3 +92,4 @@ pip install -r requirements.txt
 
 - Large local assets such as models, raw videos, training data, generated outputs, and stub files are intentionally ignored in Git for a cleaner public repository.
 - To run the full pipeline without stubs, provide the required model and input video assets locally.
+- An implementation and extension of Code in a Jiffy's youtube video on Football Analysis. https://www.youtube.com/watch?v=neBZ6huolkg
